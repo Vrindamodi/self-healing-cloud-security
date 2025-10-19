@@ -2,6 +2,7 @@ package com.cloudsec.service;
 
 import com.cloudsec.entity.CloudResource;
 import com.cloudsec.entity.DetectedRisk;
+import com.cloudsec.repository.CloudResourceRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -12,6 +13,12 @@ import java.util.List;
 @Slf4j
 @Service
 public class DetectionService {
+
+    private final CloudResourceRepository cloudResourceRepository;
+
+    public DetectionService(CloudResourceRepository cloudResourceRepository) {
+        this.cloudResourceRepository = cloudResourceRepository;
+    }
 
     /**
      * Detect security risks in cloud resources
@@ -24,7 +31,10 @@ public class DetectionService {
         // Generate mock cloud resources and scan them
         List<CloudResource> resources = generateMockResources();
 
-        for (CloudResource resource : resources) {
+        // Save resources to database so they get IDs
+        List<CloudResource> savedResources = cloudResourceRepository.saveAll(resources);
+
+        for (CloudResource resource : savedResources) {
             detectedRisks.addAll(scanResource(resource));
         }
 
@@ -127,19 +137,20 @@ public class DetectionService {
      */
     private List<CloudResource> generateMockResources() {
         List<CloudResource> resources = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
 
         // S3 Buckets
-        resources.add(new CloudResource(null, "S3_BUCKET", "company-backups", "us-east-1", true, null, null));
-        resources.add(new CloudResource(null, "S3_BUCKET", "internal-data-bucket", "eu-west-1", false, null, null));
-        resources.add(new CloudResource(null, "S3_BUCKET", "public-assets", "us-west-2", true, null, null));
+        resources.add(new CloudResource(null, "S3_BUCKET", "company-backups", "us-east-1", true, now, now));
+        resources.add(new CloudResource(null, "S3_BUCKET", "internal-data-bucket", "eu-west-1", false, now, now));
+        resources.add(new CloudResource(null, "S3_BUCKET", "public-assets", "us-west-2", true, now, now));
 
         // Security Groups
-        resources.add(new CloudResource(null, "SECURITY_GROUP", "OPEN-PROD-SG", "us-east-1", null, null, null));
-        resources.add(new CloudResource(null, "SECURITY_GROUP", "locked-down-sg", "eu-west-1", null, null, null));
+        resources.add(new CloudResource(null, "SECURITY_GROUP", "OPEN-PROD-SG", "us-east-1", false, now, now));
+        resources.add(new CloudResource(null, "SECURITY_GROUP", "locked-down-sg", "eu-west-1", false, now, now));
 
         // IAM Policies
-        resources.add(new CloudResource(null, "IAM_POLICY", "WILDCARD-ASSUME-ROLE", "us-east-1", null, null, null));
-        resources.add(new CloudResource(null, "IAM_POLICY", "limited-policy", "us-east-1", null, null, null));
+        resources.add(new CloudResource(null, "IAM_POLICY", "WILDCARD-ASSUME-ROLE", "us-east-1", false, now, now));
+        resources.add(new CloudResource(null, "IAM_POLICY", "limited-policy", "us-east-1", false, now, now));
 
         return resources;
     }
