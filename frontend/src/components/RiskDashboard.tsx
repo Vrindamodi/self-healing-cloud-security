@@ -11,6 +11,9 @@ const RiskDashboard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [scanLoading, setScanLoading] = useState(false);
   const [apiHealth, setApiHealth] = useState(false);
+  const [remediationStatus, setRemediationStatus] = useState<{ [key: number]: string }>({});
+  const [remediatingRisks, setRemediatingRisks] = useState<Set<number>>(new Set());
+  const [lastScanTime, setLastScanTime] = useState<string>('Never');
 
   // Check API health on mount
   useEffect(() => {
@@ -31,9 +34,10 @@ const RiskDashboard: React.FC = () => {
       ]);
       setRisks(risksData);
       setStats(statsData);
+      setLastScanTime(new Date().toLocaleTimeString());
     } catch (error) {
       console.error('Error fetching data:', error);
-      alert('Failed to fetch data. Make sure the backend is running.');
+      setApiHealth(false);
     } finally {
       setLoading(false);
     }
@@ -51,6 +55,41 @@ const RiskDashboard: React.FC = () => {
       alert('Failed to perform scan. Make sure the backend is running.');
     } finally {
       setScanLoading(false);
+    }
+  };
+
+  // Handle remediation
+  const handleRemediate = async (riskId: number) => {
+    try {
+      setRemediatingRisks((prev) => new Set([...prev, riskId]));
+      const response = await apiService.remediateRisk(riskId);
+      
+      if (response.status === 'success') {
+        setRemediationStatus((prev) => ({
+          ...prev,
+          [riskId]: 'SUCCESS',
+        }));
+      } else {
+        setRemediationStatus((prev) => ({
+          ...prev,
+          [riskId]: 'FAILED',
+        }));
+      }
+
+      // Refresh data after remediation
+      await fetchData();
+    } catch (error) {
+      console.error('Error remediating risk:', error);
+      setRemediationStatus((prev) => ({
+        ...prev,
+        [riskId]: 'FAILED',
+      }));
+    } finally {
+      setRemediatingRisks((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(riskId);
+        return newSet;
+      });
     }
   };
 
@@ -84,11 +123,19 @@ const RiskDashboard: React.FC = () => {
           🔐 Cloud Security Dashboard
         </h1>
         <p style={{ margin: '0', color: '#6b7280', fontSize: '16px' }}>
-          Real-time security risk detection and monitoring
+          Real-time security risk detection and remediation
+        </p>
+        <p style={{ margin: '8px 0 0 0', color: '#6b7280', fontSize: '12px' }}>
+          Last updated: {lastScanTime}
         </p>
         {!apiHealth && (
           <p style={{ margin: '8px 0 0 0', color: '#ef4444', fontSize: '14px' }}>
             ⚠️ Backend API is not responding. Make sure it's running on http://localhost:8080
+          </p>
+        )}
+        {apiHealth && (
+          <p style={{ margin: '8px 0 0 0', color: '#10b981', fontSize: '14px' }}>
+            ✅ Backend connected and healthy
           </p>
         )}
       </div>
@@ -97,7 +144,7 @@ const RiskDashboard: React.FC = () => {
       <StatsCard stats={stats} loading={loading} />
 
       {/* Controls */}
-      <div style={{ marginBottom: '24px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+      <div style={{ marginBottom: '24px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
         <ScanButton onScan={handleScan} loading={scanLoading} />
         <button
           onClick={fetchData}
@@ -141,7 +188,13 @@ const RiskDashboard: React.FC = () => {
         <h2 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '600' }}>
           Detected Risks ({risks.length})
         </h2>
-        <RiskTable risks={risks} loading={loading} />
+        <RiskTable 
+          risks={risks} 
+          loading={loading}
+          onRemediate={handleRemediate}
+          remediatingRisks={remediatingRisks}
+          remediationStatus={remediationStatus}
+        />
       </div>
     </div>
   );

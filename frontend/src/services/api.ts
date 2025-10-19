@@ -62,4 +62,20 @@ export const apiService = {
       return false;
     }
   },
+
+  /**
+   * Manually trigger remediation
+   */
+  remediateRisk: async (riskId: number): Promise<any> => {
+    const response = await apiClient.post(`/remediation/${riskId}`);
+    return response.data;
+  },
+
+  /**
+   * Get remediation status
+   */
+  getRemediationStatus: async (riskId: number): Promise<any> => {
+    const response = await apiClient.get(`/remediation/${riskId}/status`);
+    return response.data;
+  },
 };

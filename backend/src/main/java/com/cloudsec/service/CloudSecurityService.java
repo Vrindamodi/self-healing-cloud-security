@@ -1,5 +1,6 @@
 package com.cloudsec.service;
 
+import com.cloudsec.config.MetricsConfig;
 import com.cloudsec.entity.CloudResource;
 import com.cloudsec.entity.DetectedRisk;
 import com.cloudsec.repository.CloudResourceRepository;
@@ -19,20 +20,24 @@ public class CloudSecurityService {
     private final DetectionService detectionService;
     private final CloudResourceRepository cloudResourceRepository;
     private final DetectedRiskRepository detectedRiskRepository;
+    private final MetricsConfig metricsConfig;
 
     public CloudSecurityService(DetectionService detectionService,
             CloudResourceRepository cloudResourceRepository,
-            DetectedRiskRepository detectedRiskRepository) {
+            DetectedRiskRepository detectedRiskRepository,
+            MetricsConfig metricsConfig) {
         this.detectionService = detectionService;
         this.cloudResourceRepository = cloudResourceRepository;
         this.detectedRiskRepository = detectedRiskRepository;
+        this.metricsConfig = metricsConfig;
     }
 
     /**
      * Run a complete security scan
      * 1. Detect risks
      * 2. Save to database
-     * 3. Return detected risks
+     * 3. Record metrics
+     * 4. Return detected risks
      */
     @Transactional
     public List<DetectedRisk> performScan() {
@@ -45,7 +50,14 @@ public class CloudSecurityService {
         // Save all detected risks to database
         for (DetectedRisk risk : detectedRisks) {
             detectedRiskRepository.save(risk);
+            metricsConfig.recordRiskDetected();
         }
+
+        // Record scan duration metric
+        metricsConfig.recordDetectionDuration(duration);
+
+        // Update current open risks gauge
+        metricsConfig.setCurrentOpenRisks((int) detectedRiskRepository.count());
 
         log.info("Scan completed in {}ms. Detected {} risks", duration, detectedRisks.size());
         return detectedRisks;
