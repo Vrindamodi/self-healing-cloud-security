@@ -1,14 +1,14 @@
-version: "3.8"
+version: '3.8'
 
 services:
   # PostgreSQL Database
   postgres:
-    image: postgres:latest
+    image: postgres:15-alpine
     container_name: cloud-security-postgres
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: mysecretpassword
-      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cloud_security_db
     ports:
       - "5432:5432"
     volumes:
@@ -30,9 +30,9 @@ services:
       dockerfile: Dockerfile
     container_name: cloud-security-backend
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/postgres
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/cloud_security_db
       SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: mysecretpassword
+      SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SCHEDULER_DETECTION_ENABLED: "true"
@@ -56,32 +56,24 @@ services:
     restart: unless-stopped
 
   # React Frontend with Nginx
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   container_name: cloud-security-frontend
-  #   ports:
-  #     - "3000:80"
-  #   depends_on:
-  #     - backend
-  #   networks:
-  #     - cloud-security-network
-  #   healthcheck:
-  #     test:
-  #       [
-  #         "CMD",
-  #         "wget",
-  #         "--quiet",
-  #         "--tries=1",
-  #         "--spider",
-  #         "http://localhost/index.html",
-  #       ]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 10s
-  #   restart: unless-stopped
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cloud-security-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - cloud-security-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/index.html"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
 
   # Prometheus Metrics
   prometheus:
@@ -93,28 +85,20 @@ services:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
     command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
     depends_on:
       - backend
     networks:
       - cloud-security-network
     healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--quiet",
-          "--tries=1",
-          "--spider",
-          "http://localhost:9090/-/healthy",
-        ]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
       interval: 30s
       timeout: 10s
       retries: 3
     restart: unless-stopped
 
-  # # Grafana Dashboard
+  # Grafana Dashboard
   grafana:
     image: grafana/grafana:latest
     container_name: cloud-security-grafana
@@ -125,21 +109,14 @@ services:
       - "3001:3000"
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana-provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana-provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./monitoring/grafana-provisioning/dashboards:/etc/grafana/provisioning/dashboards
     depends_on:
       - prometheus
     networks:
       - cloud-security-network
     healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--quiet",
-          "--tries=1",
-          "--spider",
-          "http://localhost:3000/api/health",
-        ]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
