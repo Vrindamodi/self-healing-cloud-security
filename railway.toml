@@ -1,8 +1,22 @@
 [build]
-builder = "dockerfile"
-dockerfilePath = "backend/Dockerfile"
+builder = "nixpacks"
 
 [deploy]
-startCommand = ""
+startCommand = "docker-compose up -d"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
+
+[services.postgres]
+dockerfile = false
+
+[services.backend]
+dockerfile = false
+
+[services.frontend]
+dockerfile = false
+
+[services.prometheus]
+dockerfile = false
+
+[services.grafana]
+dockerfile = false
