@@ -6,4 +6,3 @@ dockerfilePath = "backend/Dockerfile"
 startCommand = ""
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
-```
