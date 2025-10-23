@@ -8,6 +8,6 @@ scrape_configs:
   - job_name: 'cloud-security-backend'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['backend:8080']
+      - targets: ['https://self-healing-cloud-security.onrender.com']
     scrape_interval: 15s
     scrape_timeout: 10s
